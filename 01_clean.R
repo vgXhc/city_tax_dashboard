@@ -81,6 +81,10 @@ cols_common <- intersect(colnames(taxes_16_21), colnames(taxes_22_23))
 # data frame for all years
 taxes <- rbind(taxes_16_21[, cols_common], taxes_22_23[, cols_common])
 
+
+
+
+
 taxes <- taxes |> 
   group_by(parcel) |> 
   mutate(city_net_tax_change = current_city_net_tax/lag(current_city_net_tax, order_by = tax_year) - 1,
@@ -94,26 +98,99 @@ taxes <- taxes |>
 # remove "current_" from column names
 names(taxes) <- str_remove(names(taxes), "current_")
 
-# load inflation data
-inflation <- read_csv("madison_tax_dashboard/data/fredgraph.csv") |> 
+# function for indexing: 
+index_function <- function(x){
+  # input: x, a vector
+  # output: x_indexed, a vector 
+  initial <- x[1]
+  map_dbl(x, function(x){x/initial * 100})
+}
+
+# add indexed values
+taxes <- taxes |> 
+  group_by(parcel) |> 
+  mutate(across(ends_with(c("net_tax", "assessed_value")), index_function, .names = "{.col}_indexed"))
+
+# read CPI data (from data.bls.gov) and index to 2016
+cpi <- read_excel("~/Downloads/SeriesReport-20241005093602_290b8b.xlsx", skip = 10)
+
+cpi <- cpi |> 
+  rename(tax_year = Year) |> 
+  mutate(cpi_indexed = index_function(Annual)) |> 
+  select(tax_year, cpi_indexed)
+
+# load annual inflation rate data
+inflation <- read_csv("data/fredgraph.csv") |> 
   mutate(tax_year = year(DATE)) |> 
   rename(inflation_rate = CPIAUCSL_PC1) |> 
   select(tax_year, inflation_rate)
 
 # add inflation to tax parcels
 taxes <- taxes |> 
-  left_join(y = inflation)
+  left_join(y = inflation) |> 
+  left_join(y = cpi)
 
 # save files in various formats
-write_csv(taxes, "data/taxes_all.csv")
-write_rds(taxes, "data/taxes_all.RDS", compress = "gz")
+# write_csv(taxes, "data/taxes_all.csv")
+# write_rds(taxes, "data/taxes_all.RDS", compress = "gz")
 arrow::write_parquet(taxes, sink = "madison_tax_dashboard/data/taxes_all.parquet")
 
 # long version of data set for creating plot
+## set up pivot columns
+pivot_cols <- c("total_assessed_value", 
+                "county_net_tax", 
+                "city_net_tax", 
+                "school_net_tax", 
+                "total_net_tax")
+
+pivot_cols <- c(pivot_cols, paste0(pivot_cols, "_indexed"))
+
 taxes_long <- taxes |>
-  pivot_longer(cols = c(total_assessed_value, county_net_tax, city_net_tax, school_net_tax, total_net_tax),names_to = "variable", values_to = "value") |>
+  pivot_longer(cols = all_of(pivot_cols) ,names_to = "variable", values_to = "value") |>
   group_by(parcel, variable) |>
   mutate(change = value/lag(value, order_by = tax_year) - 1)
 
 # save long data as parquet file
 arrow::write_parquet(taxes_long, "madison_tax_dashboard/data/taxes_long.parquet")
+
+library(ntdr)
+x <- get_ntd()
+
+madison <- x |> filter(agency == "City of Madison" & modes == "MB" & tos == "DO" & year(month) >2018)
+
+max_month <-  madison |>  filter(year(month) == max(year(month))) |> 
+  summarize(max(month(month, label = T, abbr = F))) |> pull()
+madison |> 
+  mutate(month_label = month(month, label = T, abbr = T)) |> 
+  ggplot(aes(month, value)) +
+  geom_col(aes(fill = month_label)) +
+  geom_line() +
+  theme_minimal() +
+  #geom_point(data = x |> filter(agency == "City of Madison" & modes == "MB" & tos == "DO" & year(month) > 2016 & month(month) == 11)) +
+  scale_x_date() +
+  ylab("Unlinked passenger trips") +
+  ylim(0,1500000) +
+  labs(title = "Madison Metro monthly ridership", 
+       subtitle = paste0("Latest month shown: ", max_month, " 2024"),
+       caption = "Data: National Transit Database")
+
+
+madison_line <- madison |> 
+  mutate(month_label = month(month, label = T, abbr = T),
+         year = as.factor(year(month))) |> 
+  select(year, value, month_label)
+  # group_by(year, month_label) |>
+madison_line |> 
+  ggplot(aes(month_label, value, color = year, group = year)) +
+  geom_line() +
+  geom_point() +
+  gghighlight::gghighlight(year == 2024,
+  unhighlighted_params = list(colour = NULL, alpha = 0.3)) +
+  geom_text(data = madison_line |> filter(month_label == "Dec"), aes(label = year)) +
+  ylab("Unlinked passenger trips") +
+  xlab("Month") +
+  theme_minimal() +
+  ylim(0,1500000) +
+  labs(title = "Madison Metro monthly ridership", 
+       subtitle = paste0("Latest month shown: ", max_month, " 2024"),
+       caption = "Data: National Transit Database")
