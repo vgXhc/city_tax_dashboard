@@ -60,7 +60,8 @@ ui <- fluidPage(
                                selected = "city_net_tax"),
             h3("Data Sources"),
             p("Taxes and property values: ", a(href = "https://www.cityofmadison.com/finance/treasury/property-taxes/tax-roll-data", "City of Madison")),
-            p("Inflation: ", a(href = "https://fred.stlouisfed.org/graph/?g=WAVo", "Federal Reserve Economic Data"))
+            p("Inflation: ", a(href = "https://fred.stlouisfed.org/graph/?g=WAVo", "Federal Reserve Economic Data")),
+            p("Consumer Price Index: ", a(href = "https://www.bls.gov/cpi/data.htm", "Bureau of Labor Statistics"))
         ),
 
         # Show a plot and table
