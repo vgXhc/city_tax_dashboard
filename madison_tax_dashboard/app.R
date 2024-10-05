@@ -58,7 +58,7 @@ ui <- fluidPage(
                                      "property value" = "total_assessed_value"
                                    ),
                                selected = "city_net_tax"),
-            h1("Data Sources"),
+            h3("Data Sources"),
             p("Taxes and property values: ", a(href = "https://www.cityofmadison.com/finance/treasury/property-taxes/tax-roll-data", "City of Madison")),
             p("Inflation: ", a(href = "https://fred.stlouisfed.org/graph/?g=WAVo", "Federal Reserve Economic Data"))
         ),
@@ -68,10 +68,14 @@ ui <- fluidPage(
           tabsetPanel(
             id = "viz",
             tabPanel(
-              "Visualization",
+              "Absolute values",
            plotOutput("cityPlot"),
            gt_output("cityTable")
             ),
+           tabPanel("Indexed values",
+                    plotOutput("cityPlotIndex"),
+                    gt_output("cityTableIndex")
+                    ),
            tabPanel(
              "More info/FAQ",
              h1("What is this app all about?"),
@@ -170,6 +174,65 @@ server <- function(input, output, session) {
         ),
         locations = cells_body(columns = tax_year))
     })
+    
+    output$cityPlotIndex <- renderPlot({
+      
+      # all indexed variables
+      vars_indexed <- paste0(input$taxType, "_indexed")
+      
+      taxes_plot() |> 
+        filter(variable %in% vars_indexed) |> 
+        mutate(variable_label = case_match(variable,
+                                           "city_net_tax_indexed" ~ "City Net Tax",
+                                           "county_net_tax_indexed" ~ "County Net Tax",
+                                           "school_net_tax_indexed" ~ "School Net Tax",
+                                           "total_net_tax_indexed" ~ "Total Net Tax",
+                                           "total_assessed_value_indexed" ~ "Total Assessed Value")) |> 
+        ggplot(aes(tax_year, value, color = variable_label)) +
+        geom_line() +
+        geom_point() +
+        geom_text(aes(label = scales::label_percent( 
+          accuracy = 1,
+          style_positive = "plus",
+          style_negative = "minus")(change), color = variable_label), nudge_y = 1, nudge_x = -0.5) +
+        xlab("Tax Year") +
+        labs(title = paste0("Property Values and Taxes for ", input$address),
+             subtitle = "Indexed to 2016 = 100") + 
+        scale_y_continuous(#labels = scales::label_dollar(), limits = c(0, NA),
+                           name = "Index (2016)") +
+        hrbrthemes::scale_color_ipsum() +
+        hrbrthemes::theme_ipsum() +
+        theme(legend.title = element_blank())
+      
+    })
+    output$cityTableIndex <- render_gt({
+      # all indexed variables
+      vars_indexed <- paste0(input$taxType, "_indexed")
+      
+      taxes_table() %>%
+        ungroup() %>% 
+        select(tax_year, any_of(vars_indexed), cpi_indexed) %>%
+        select(order(colnames(.))) %>% 
+        relocate(tax_year) |> 
+        gt() |> 
+        fmt_number(columns = ends_with("indexed"), decimals = 1) |> 
+        # fmt_percent(columns = ends_with("_change"), decimals = 1, force_sign = TRUE) |> 
+        # fmt_percent(columns = inflation_rate, scale_values = FALSE, decimals = 1, force_sign = TRUE) |>
+        # fmt_currency(columns = any_of(input$taxType)) |> 
+        cols_label_with(fn = ~ gsub("\\_", " ", .) |> str_to_title(.))  |> 
+        cols_label_with(fn = ~ str_remove(., "Indexed")) |> 
+        cols_label(cpi_indexed = "Consumer Price Index") |> 
+        cols_move_to_end(columns = "cpi_indexed") |> 
+        # data_color(columns = ends_with(c("_change", "_rate")), 
+        #            #domain = c(0,1),
+        #            palette = "viridis") |> 
+        tab_style(style = list(
+          cell_text(weight = "bold")
+        ),
+        locations = cells_body(columns = tax_year)) |> 
+        tab_source_note("All values indexed to 2016. 2016 = 100")
+    })
+    
 
 }
 
