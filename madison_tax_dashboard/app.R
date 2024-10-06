@@ -59,9 +59,9 @@ ui <- fluidPage(
                                    ),
                                selected = "city_net_tax"),
             h3("Data Sources"),
-            p("Taxes and property values: ", a(href = "https://www.cityofmadison.com/finance/treasury/property-taxes/tax-roll-data", "City of Madison")),
-            p("Inflation: ", a(href = "https://fred.stlouisfed.org/graph/?g=WAVo", "Federal Reserve Economic Data")),
-            p("Consumer Price Index: ", a(href = "https://www.bls.gov/cpi/data.htm", "Bureau of Labor Statistics"))
+            p("Taxes and property values: ", a(href = "https://www.cityofmadison.com/finance/treasury/property-taxes/tax-roll-data", "City of Madison", target="_blank")),
+            p("Inflation: ", a(href = "https://fred.stlouisfed.org/graph/?g=WAVo", "Federal Reserve Economic Data", target="_blank")),
+            p("Consumer Price Index: ", a(href = "https://www.bls.gov/cpi/data.htm", "Bureau of Labor Statistics", target="_blank"))
         ),
 
         # Show a plot and table
@@ -85,8 +85,8 @@ ui <- fluidPage(
              h1("Where can I read more about  property taxes and the referendum?"),
                 p("This website doesn't dive into the question of why we need a referendum now. The short version: Our city is growing, which means expenses are going up. But the state legislature is putting hard constraints on property tax increases and other ways to generate revenue. And the amount of state aid per capita that the city receives is among the lowest across all Wisconsin municipalities. There's a lot more to this, and if you want to read more, take a look at these sources:"),
                 
-                p(a(href = "https://www.cityofmadison.com/mayor/documents/REFERENDUMINFOSHEETFINAL.pdf", "City of Madison Referendum Info Sheet")),
-                p(a(href= "https://posts.unit1127.com/p/madisons-budget-challenges-a-four", "Madison’s Budget Challenges: A four part series")
+                p(a(href = "https://www.cityofmadison.com/mayor/documents/REFERENDUMINFOSHEETFINAL.pdf", "City of Madison Referendum Info Sheet", target="_blank")),
+                p(a(href= "https://posts.unit1127.com/p/madisons-budget-challenges-a-four", "Madison’s Budget Challenges: A four part series", target="_blank")
                 ),
                 h1("Who created this website?"),
                 p("That would be me, Harald Kliems. I live in Madison and care about it a lot. Property taxes, levy limits, mill rates, and all that are complicated, and I have encountered many smart people who were and are confused by it. I'm hoping this website can clear things up at least a little."),
@@ -98,11 +98,11 @@ ui <- fluidPage(
              h1("What about special assessements?"),
              p("Special assessments (e.g. if the road in front of your property was reconstructed) are not included here. They don't have anything to do with the referendum -- but in some years they may be a large part of the amount of money you owe the city!"),
                 h1("I found an error or would like to request a feature. What should I do?"),
-                p("Send me an email at kliems@gmail.com or ", a(href= "https://github.com/vgXhc/city_tax_dashboard/issues", "submit an issue via GitHub")),
+                p("Send me an email at kliems@gmail.com or ", a(href= "https://github.com/vgXhc/city_tax_dashboard/issues", target="_blank", "submit an issue via GitHub")),
                 h1("How can I support this website?"),
-                p("For now, I'm planning to take this website offline after the election date. Until then, I'm covering the hosting costs out of pocket. If you want to contribute to the cost, you can buy me a ", a(href = "https://ko-fi.com/haraldk", "ko-fi")),
+                p("For now, I'm planning to take this website offline after the election date. Until then, I'm covering the hosting costs out of pocket. If you want to contribute to the cost, you can buy me a ", a(href = "https://ko-fi.com/haraldk", "ko-fi", target="_blank")),
                 h1("Where's the source code?"),
-                p(a(href="https://github.com/vgXhc/city_tax_dashboard", "https://github.com/vgXhc/city_tax_dashboard"))
+                p(a(href="https://github.com/vgXhc/city_tax_dashboard", target="_blank", "https://github.com/vgXhc/city_tax_dashboard"))
            )
         )
         )
@@ -146,7 +146,8 @@ server <- function(input, output, session) {
                                               style_positive = "plus",
                                               style_negative = "minus")(change), color = variable_label), nudge_y = 300, nudge_x = -0.5) +
         xlab("Tax Year") +
-        labs(title = paste0("Property Values and Taxes for ", input$address)) + 
+        labs(title = paste0("Property Values and Taxes for ", input$address),
+             subtitle = "% change in chart is year-over-year") + 
         scale_y_continuous(labels = scales::label_dollar(), limits = c(0, NA),
                            name = "Amount") +
         hrbrthemes::scale_color_ipsum() +
@@ -198,7 +199,7 @@ server <- function(input, output, session) {
           style_negative = "minus")(change), color = variable_label), nudge_y = 1, nudge_x = -0.5) +
         xlab("Tax Year") +
         labs(title = paste0("Property Values and Taxes for ", input$address),
-             subtitle = "Indexed to 2016 = 100") + 
+             subtitle = "Indexed to 2016 = 100. Percent change is year-over-year") + 
         scale_y_continuous(#labels = scales::label_dollar(), limits = c(0, NA),
                            name = "Index (2016)") +
         hrbrthemes::scale_color_ipsum() +
